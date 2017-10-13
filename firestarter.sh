@@ -74,7 +74,6 @@ function run_Main(){
     done
 }
 
-#TODO: check if process still exists before removing lock file. Refactor process check from run_Main?
 function clean_Exit(){
     echo "Cleaning up and exiting script.."
     FirefoxPID=`cat .lock` #other variable is out of scope here, so read it from the lock file
