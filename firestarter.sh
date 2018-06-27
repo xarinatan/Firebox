@@ -66,8 +66,13 @@ function run_Main(){
         
         if ! ps -p $FirefoxPID > /dev/null
         then
-            echo "Firefox($FirefoxPID) is not running. Did it crash?"
+            echo "Firefox($FirefoxPID) is not running. Did it crash? "
             clean_Exit
+        fi
+        
+        if ! [ -f ./.lock ]; then
+                echo -n "Lock file removed. "
+                clean_exit
         fi
             
         sleep 2;
