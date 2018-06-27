@@ -1,4 +1,5 @@
 #!/bin/bash
+#note: the 'start' of the script is at the bottom. check_for_lock() is ran and if that succeeds, run_Main() is executed.
 
 trap ctrl_c INT
 weAreRunning=false 
@@ -50,6 +51,9 @@ function check_for_lock(){
 
 function run_Main(){
     touch .lock
+    if [ ! -d "ffprofile" ]; then
+      mkdir ffprofile
+    fi
     weAreRunning=true
     echo "Starting custom firefox with no RPC and custom local profile.."
     /usr/lib/firefox/firefox --profile ./ffprofile --no-remote > console.log 2>&1 & # Really this is the core of the script. The rest is just making sure this works well across machines and such :v.
