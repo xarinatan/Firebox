@@ -1,8 +1,11 @@
 #!/bin/bash
-#note: the 'start' of the script is at the bottom. check_for_lock() is ran and if that succeeds, run_Main() is executed.
+#note: the 'start' of the script is at the bottom. Main() is ran which and if that succeeds, Main() is executed.
 
 trap ctrl_c INT
-weAreRunning=false 
+weAreRunning=false
+interactive=false
+FirefoxPID=0
+profileDirName="ffprofile"
 
 function ctrl_c() {
     if weAreRunning ;
@@ -18,6 +21,11 @@ function ctrl_c() {
 
 function check_for_lock(){
     if [ -f ./.lock ]; then
+        if  ! $interactive ; then
+            echo "Cannot get user input. exiting.." 
+            exit
+        fi
+        
         read -r -p "Lock exists. Do you want to issue a remote kill request? (WARNING Remote open data will be lost!)[y/N]" response
         case "$response" in
             [yY][eE][sS]|[yY]) 
@@ -31,7 +39,7 @@ function check_for_lock(){
                 else
                     waiting=false
                     echo "!"
-                    run_Main
+                    Main
                 fi
             sleep 2; done
             exit
@@ -43,49 +51,74 @@ function check_for_lock(){
         esac
         
     else
-        run_Main
+        return true
     fi
     
 }
 
-
-function run_Main(){
-    touch .lock
-    if [ ! -d "ffprofile" ]; then
-      mkdir ffprofile
-    fi
-    weAreRunning=true
-    echo "Starting custom firefox with no RPC and custom local profile.."
-    /usr/lib/firefox/firefox --profile ./ffprofile --no-remote > console.log 2>&1 & # Really this is the core of the script. The rest is just making sure this works well across machines and such :v.
-    FirefoxPID=`echo $!`
-    echo $FirefoxPID > .lock
-    RunCheck=true
-    while $RunCheck; do
-        if [ -f ./.kill ]; then
-            MSG=`cat ./.kill`
-            echo -n "Kill request found with message $MSG. " 
-            RunCheck=false
-            clean_Exit
-        fi
-        
-        if ! ps -p $FirefoxPID > /dev/null
-        then
-            echo "Firefox($FirefoxPID) is not running. Did it crash? "
-            clean_Exit
-        fi
-        
-        if ! [ -f ./.lock ]; then
-                echo -n "Lock file removed. "
-                clean_exit
-        fi
-            
-        sleep 2;
-    done
+function first_run(){
+    mkdir $profileDirName
+    read -r -p "New profile created. do you want to copy the template user.js into the new profile for some default settings? (enable usercontexts, dark-compact theme, etc, check template-user.js for more details) [y/N]" response
+    case "$response" in
+        [yY][eE][sS]|[yY])
+            cp template-user.js ./$profileDirName/user.js
+        ;;
+        *)
+            Main
+        ;;
+    esac
 }
 
-function clean_Exit(){
+function update_lockfile(){
+        echo $FirefoxPID > .lock
+        echo " on machine " >> .lock
+        echo $HOSTNAME >> .lock
+}
+
+
+function Main(){
+    if [ check_for_lock ]; then
+        touch .lock
+        if [ ! -d "$profileDirName" ]; then
+            if  ! $interactive ; then
+                echo "Cannot get user input. exiting.." 
+                exit
+            fi
+            first_run
+        fi
+        weAreRunning=true
+        echo "Starting custom firefox with no RPC and custom local profile.."
+        /usr/lib/firefox/firefox --profile ./$profileDirName --no-remote > console.log 2>&1 & # Really this is the core of the script. The rest is just making sure this works well across machines and such :v.
+        FirefoxPID=`echo $!`
+        RunCheck=true
+        while $RunCheck; do
+            if [ -f ./.kill ]; then
+                MSG=`cat ./.kill`
+                echo -n "Kill request found with message $MSG. " 
+                RunCheck=false
+                clean_exit
+            fi
+            
+            if ! ps -p $FirefoxPID > /dev/null
+            then
+                echo "Firefox($FirefoxPID) is not running. Did it crash? "
+                clean_exit
+            fi
+            
+            if ! [ -f ./.lock ]; then
+                    echo -n "Lock file removed. Killing firefox.. "
+                    clean_exit
+            fi
+            
+            update_lockfile
+            sleep 2;
+        done
+    fi
+}
+
+function clean_exit(){
     echo "Cleaning up and exiting script.."
-    FirefoxPID=`cat .lock` #other variable is out of scope here, so read it from the lock file
+    
     if ps -p $FirefoxPID > /dev/null
     then
         echo "Firefox is still running. Killing Firefox.."
@@ -96,7 +129,13 @@ function clean_Exit(){
     exit
 }
 
+if [ -t 1 ] ; then 
+    echo "Interactive terminal detected.."
+    interactive=true
+else 
+    echo "WARNING: This shell is not interactive! Will exit if requiring user input.."
+fi
 
-check_for_lock #Checks for locks and runs the main function
+Main #Main part of the script starts here, after the function definitions.
 
 echo "Something went wrong.. This part of the script isn't meant to be run. Did spacetime collapse?"
