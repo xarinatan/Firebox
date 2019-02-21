@@ -51,7 +51,7 @@ function check_for_lock(){
         esac
         
     else
-        return true
+        true
     fi
     
 }
@@ -77,7 +77,7 @@ function update_lockfile(){
 
 
 function Main(){
-    if [ check_for_lock ]; then
+    if check_for_lock ; then
         touch .lock
         if [ ! -d "$profileDirName" ]; then
             if  ! $interactive ; then
