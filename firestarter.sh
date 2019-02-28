@@ -1,5 +1,5 @@
 #!/bin/bash
-#note: the 'start' of the script is at the bottom. Main() is ran which and if that succeeds, Main() is executed.
+#note: the 'start' of the script is at the bottom. Main() is ran which checks for lock files and if there are none, Firefox is executed.
 
 trap ctrl_c INT
 weAreRunning=false
@@ -8,7 +8,7 @@ FirefoxPID=0
 profileDirName="ffprofile"
 
 function ctrl_c() {
-    if weAreRunning ;
+    if $weAreRunning ;
     then
         echo -n "Ctrl+C Caught. "
         clean_exit
